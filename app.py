@@ -178,50 +178,60 @@ elif menu == "퀀트 스크리너":
             st.warning("데이터 수집에 실패했습니다. 잠시 후 다시 시도하세요.")
 
 elif menu == "포트폴리오":
-    st.write("### MPT 최적화 엔진")
+    st.write("### MPT 최적화 엔진 (최대 3종목 집중 투자 전략)")
     df_download = yf.download(FLAT_LIST, period="1y")
     if 'Close' in df_download.columns:
         data = df_download['Close']
         if not data.empty:
             ret = data.pct_change().dropna()
-            
-            # 종목 수가 많으므로 공분산 행렬 계산 검증 강화
             cov = ret.cov() * 252
             
-            # 목적 함수: 포트폴리오 전체 변동성(위험) 최소화
-            def obj(w): return np.sqrt(w.T @ cov @ w)
-            
-            # 1/N 기본값 설정
             n_assets = len(FLAT_LIST)
             init_weights = [1.0 / n_assets] * n_assets
-            
-            # 제약 조건: 비중의 합은 무조건 1(100%)이 되어야 함
             cons = ({'type': 'eq', 'fun': lambda x: np.sum(x) - 1.0})
+            bounds = [(0.0, 0.40)] * n_assets  # 한 종목당 최대 40% 제한 유지
             
-            # 종목당 투자 비중 제한: 최소 0% ~ 최대 15% (104개 종목이므로 최대 한도를 낮춰야 최적화가 잘 풀립니다)
-            bounds = [(0.0, 0.15)] * n_assets
+            # 목적 함수: 포트폴리오 변동성 최소화 + 자잘한 비중에 패널티 부여 (L1 규제 효과)
+            # 이를 통해 컴퓨터가 자금을 가장 효율적인 소수 종목으로 압축하게 만듭니다.
+            def obj(w):
+                volatility = np.sqrt(w.T @ cov @ w)
+                sparsity_penalty = 0.5 * np.sum(np.abs(w)) # 비중 분산 패널티
+                return volatility + sparsity_penalty
             
-            # SLSQP 알고리즘에 반복 횟수(maxiter)를 대폭 늘려 계산 성공률 확보
             res = minimize(
                 obj, 
                 init_weights, 
                 method='SLSQP', 
                 bounds=bounds, 
                 constraints=cons,
-                options={'maxiter': 1000} 
+                options={'maxiter': 1000}
             )
             
-            # 결과 시각화 (비중이 0.1% 이상인 유의미한 종목만 정렬해서 보기 좋게 출력)
+            # 계산된 비중 정리
             weights_series = pd.Series(res.x, index=FLAT_LIST)
-            filtered_weights = weights_series[weights_series > 0.001].sort_values(ascending=False)
             
-            if not filtered_weights.empty:
-                st.bar_chart(filtered_weights)
+            # 상위 3개 종목만 강제로 추출하고 비중의 합이 1(100%)이 되도록 재조정(Normalize)
+            top_3_weights = weights_series.nlargest(3)
+            if top_3_weights.sum() > 0:
+                top_3_weights = top_3_weights / top_3_weights.sum()
+            
+            # 0%인 종목 제외하고 최종 출력
+            final_portfolio = top_3_weights[top_3_weights > 0]
+            
+            if not final_portfolio.empty:
+                st.write("#### 🎯 퀀트 엔진 추천 탑 3 압축 포트폴리오")
+                
+                # 차트 출력
+                st.bar_chart(final_portfolio)
+                
+                # 표 및 상세 가이드 출력
+                st.write("#### 📊 종목별 정밀 투자 비중")
+                for ticker, weight in final_portfolio.items():
+                    st.info(f"**{ticker}** : {weight*100:.2f}% 비중으로 편입")
             else:
-                st.warning("⚠️ 최적화 엔진이 수렴하지 못했습니다. 종목 리스트를 조금 줄이거나 다시 시도해 주세요.")
+                st.warning("⚠️ 최적화 엔진이 자산 배분에 실패했습니다. 잠시 후 다시 시도해 주세요.")
     else:
         st.error("데이터 셋을 생성할 수 없습니다.")
-
 elif menu == "전략 테스트":
     st.write("### 이동평균 백테스트")
     s, l = st.slider("단기/장기 기간", 5, 200, (20, 100))

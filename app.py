@@ -28,9 +28,9 @@ st.markdown("""
 st.markdown('<div class="finviz-logo">ALPHA<span>SEEKER</span>.com</div>', unsafe_allow_html=True)
 st.caption("2026 Enterprise Quantitative Intelligence Platform")
 
-# --- [3. 104개 종목 마스터 풀 관리 (오타 수정 완료)] ---
+# --- [3. 요청하신 새 종목 풀 반영 (완벽한 중괄호 괄호 매칭)] ---
 WATCH_LIST = {
-    Technology": [
+    "Technology": [
         "NVDA", "AVGO", "AMD", "ARM", "MRVL", "NVTS", "WOLF", "QCOM", "ADI", "MU",
         "ASML", "AMAT", "LRCX", "UCTT", "CAMT", "KLAC", "SNPS", "CDNS",
         "MSFT", "NOW", "GWRE", "CRWD", "PANW", "NET", "ORCL", "CRM", "DDOG", "PLTR"

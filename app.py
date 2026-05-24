@@ -108,7 +108,19 @@ elif menu == "퀀트 스크리너":
             st.write("힌트: 현재 네트워크 연결 상태나 야후 파이낸스의 응답이 원활하지 않을 수 있습니다.")
 elif menu == "포트폴리오":
     st.write("### MPT 최적화 엔진")
-    data = yf.download(FLAT_LIST, period="1y")['Adj Close']
+    # 1. 데이터를 다운로드하고, 먼저 컬럼을 확인합니다.
+df_download = yf.download(FLAT_LIST, period="1y")
+
+# 2. 'Adj Close'가 없으면 'Close'를 사용하도록 유연하게 처리합니다.
+if 'Adj Close' in df_download.columns.get_level_values(0):
+    data = df_download['Adj Close']
+else:
+    data = df_download['Close']
+
+# 3. 데이터가 비어있지 않은지 확인 후 MPT 계산
+if not data.empty:
+    ret = data.pct_change().dropna()
+    # ... 이후 MPT 계산 로직 계속
     ret = data.pct_change().dropna()
     cov = ret.cov() * 252
     def obj(w): return np.sqrt(w.T @ cov @ w)

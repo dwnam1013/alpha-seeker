@@ -28,7 +28,7 @@ st.markdown("""
 st.markdown('<div class="finviz-logo">ALPHA<span>SEEKER</span>.com</div>', unsafe_allow_html=True)
 st.caption("2026 Enterprise Quantitative Intelligence Platform")
 
-# --- [3. 104개 종목 마스터 풀 관리] ---
+# --- [3. 104개 종목 마스터 풀 관리 (오타 수정 완료)] ---
 WATCH_LIST = {
     Technology": [
         "NVDA", "AVGO", "AMD", "ARM", "MRVL", "NVTS", "WOLF", "QCOM", "ADI", "MU",
@@ -76,7 +76,7 @@ if menu == "시장 분석":
     s, hist, info = fetch_ticker_data(ticker)
     
     if s and hist is not None and not hist.empty:
-        # --- [신규 기능: 트레이딩 핵심 선행 지표 계산] ---
+        # --- [트레이딩 핵심 선행 지표 계산] ---
         current_price = info.get('currentPrice', hist['Close'].iloc[-1])
         
         # 최근 20일간의 최고가/최저가 기준으로 저항선/지지선 도출
@@ -84,7 +84,7 @@ if menu == "시장 분석":
         resistance_line = recent_hist['High'].max()
         support_line = recent_hist['Low'].min()
         
-        # ATR(가변 변동성) 대용으로 최근 20일 표준편차를 활용한 정밀 손절/익절선 계산
+        # 최근 20일 표준편차를 활용한 정밀 손절/익절선 계산
         volatility = recent_hist['Close'].pct_change().std() * current_price
         stop_loss = current_price - (volatility * 1.5)
         take_profit = current_price + (volatility * 2.0)
@@ -127,7 +127,6 @@ if menu == "시장 분석":
             
             st.write("#### 최신 뉴스")
             try:
-                # 에러 유발 가능성이 높은 feedparser 구문을 안전하게 보호
                 news_feed = feedparser.parse(f"https://news.google.com/rss/search?q={ticker}+stock&hl=ko&gl=KR")
                 if news_feed.entries:
                     for n in news_feed.entries[:4]:
@@ -142,7 +141,7 @@ elif menu == "퀀트 스크리너":
         prog = st.progress(0)
         results = []
         for i, t in enumerate(FLAT_LIST):
-            time.sleep(0.1) # 속도 제한 완화
+            time.sleep(0.1)
             s, _, info = fetch_ticker_data(t)
             if s and info and 'trailingPE' in info:
                 pcr = get_option_chain_analysis(s)

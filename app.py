@@ -184,10 +184,41 @@ elif menu == "포트폴리오":
         data = df_download['Close']
         if not data.empty:
             ret = data.pct_change().dropna()
+            
+            # 종목 수가 많으므로 공분산 행렬 계산 검증 강화
             cov = ret.cov() * 252
+            
+            # 목적 함수: 포트폴리오 전체 변동성(위험) 최소화
             def obj(w): return np.sqrt(w.T @ cov @ w)
-            res = minimize(obj, [1/len(FLAT_LIST)]*len(FLAT_LIST), bounds=[(0, 0.4)]*len(FLAT_LIST), constraints={'type': 'eq', 'fun': lambda x: np.sum(x) - 1})
-            st.bar_chart(pd.Series(res.x, index=FLAT_LIST).sort_values(ascending=False))
+            
+            # 1/N 기본값 설정
+            n_assets = len(FLAT_LIST)
+            init_weights = [1.0 / n_assets] * n_assets
+            
+            # 제약 조건: 비중의 합은 무조건 1(100%)이 되어야 함
+            cons = ({'type': 'eq', 'fun': lambda x: np.sum(x) - 1.0})
+            
+            # 종목당 투자 비중 제한: 최소 0% ~ 최대 15% (104개 종목이므로 최대 한도를 낮춰야 최적화가 잘 풀립니다)
+            bounds = [(0.0, 0.15)] * n_assets
+            
+            # SLSQP 알고리즘에 반복 횟수(maxiter)를 대폭 늘려 계산 성공률 확보
+            res = minimize(
+                obj, 
+                init_weights, 
+                method='SLSQP', 
+                bounds=bounds, 
+                constraints=cons,
+                options={'maxiter': 1000} 
+            )
+            
+            # 결과 시각화 (비중이 0.1% 이상인 유의미한 종목만 정렬해서 보기 좋게 출력)
+            weights_series = pd.Series(res.x, index=FLAT_LIST)
+            filtered_weights = weights_series[weights_series > 0.001].sort_values(ascending=False)
+            
+            if not filtered_weights.empty:
+                st.bar_chart(filtered_weights)
+            else:
+                st.warning("⚠️ 최적화 엔진이 수렴하지 못했습니다. 종목 리스트를 조금 줄이거나 다시 시도해 주세요.")
     else:
         st.error("데이터 셋을 생성할 수 없습니다.")
 

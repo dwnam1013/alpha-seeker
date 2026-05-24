@@ -30,9 +30,17 @@ st.caption("2026 Enterprise Quantitative Intelligence Platform")
 
 # --- [3. 104개 종목 마스터 풀 관리 (오타 수정 완료)] ---
 WATCH_LIST = {
-    "Technology": ["NVDA", "AVGO", "AMD", "ARM", "MRVL", "NVTS", "WOLF", "QCOM", "ADI", "MU", "ASML", "AMAT", "LRCX", "UCTT", "CAMT", "KLAC", "SNPS", "CDNS", "MSFT", "NOW", "GWRE", "CRWD", "PANW", "NET", "ORCL", "CRM", "DDOG", "PLTR"],
-    "Communication": ["GOOGL", "META", "SNAP", "PINS", "NFLX", "DIS", "ROKU", "SPOT", "TTWO", "EA", "TMUS", "VZ", "T", "ASTS"],
-    "Consumer": ["AMZN", "MELI", "ETSY", "EBAY", "TSLA", "RIVN", "CVNA", "PDD", "LULU", "DECK", "NKE", "BABA", "LI", "LCID", "UBER", "LYFT", "BKNG", "ABNB"]
+    Technology": [
+        "NVDA", "AVGO", "AMD", "ARM", "MRVL", "NVTS", "WOLF", "QCOM", "ADI", "MU",
+        "ASML", "AMAT", "LRCX", "UCTT", "CAMT", "KLAC", "SNPS", "CDNS",
+        "MSFT", "NOW", "GWRE", "CRWD", "PANW", "NET", "ORCL", "CRM", "DDOG", "PLTR"
+    ],
+    "Communication Services": ["GOOGL", "META", "SNAP", "PINS", "NFLX", "DIS", "ROKU", "SPOT", "TTWO", "EA", "TMUS", "VZ", "T", "ASTS"],
+    "Consumer Discretionary": ["AMZN", "MELI", "ETSY", "EBAY", "TSLA", "RIVN", "CVNA", "PDD", "LULU", "DECK", "NKE", "BABA", "LI", "LCID", "UBER", "LYFT", "BKNG", "ABNB"],
+    "Financials": ["V", "MA", "PYPL", "SQ", "SOFI", "UPST", "HOOD", "COIN", "NU", "JPM", "GS", "MS", "BX", "BAC", "C", "BLK"],
+    "Healthcare": ["LLY", "NVO", "MRK", "ISRG", "SYK", "DXCM", "PODD", "ILMN", "CRSP", "AMGN", "BIIB", "GILD", "VRTX", "UNH"],
+    "Industrials": ["ETN", "GE", "VRT", "LMT", "RTX", "GD", "CAT", "DE", "FDX", "UPS", "WM"],
+    "Energy & Materials": ["XOM", "CVX", "OXY", "FANG", "NNE", "SMR", "CEG", "LIN", "FCX", "ALB", "NEM"]
 }
 FLAT_LIST = sorted(list(set([t for sub in WATCH_LIST.values() for t in sub])))
 

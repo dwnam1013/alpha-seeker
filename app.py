@@ -50,7 +50,11 @@ def fetch_ticker_data(ticker):
     try:
         s = yf.Ticker(ticker)
         hist = s.history(period="1y")
-        info = s.info
+        # 야후 서버 지연 대비 비동기식 예외 안전장치 확보
+        try:
+            info = s.info
+        except:
+            info = {}
         return s, hist, info
     except Exception as e:
         logger.error(f"Error fetching {ticker}: {e}")
@@ -74,29 +78,36 @@ if menu == "시장 분석":
     ticker = st.text_input("분석할 종목", "NVDA").upper()
     s, hist, info = fetch_ticker_data(ticker)
     
-    if s and hist is not None and not hist.empty:
-        # --- [퀀트 전문가 방식의 지표 계산 파트] ---
-        current_price = info.get('currentPrice', hist['Close'].iloc[-1])
-        
-        # 1. 통계적 지지/저항선 계산 (20일 이동평균 ∓ 2 표준편차)
+    # 안전장치 강화: info가 비어있어도 hist가 있다면 차트를 그리도록 설계 변경
+    if hist is not None and not hist.empty:
+        # 1. 현재가 방어적 도출 (info에 없으면 차트의 가장 최신 종가 사용)
+        current_price = hist['Close'].iloc[-1]
+        if info and 'currentPrice' in info:
+            current_price = info['currentPrice']
+            
+        # 2. 통계적 지지/저항선 계산 (20일 이동평균 ∓ 2 표준편차)
         ma20 = hist['Close'].rolling(window=20).mean().iloc[-1]
         std20 = hist['Close'].rolling(window=20).std().iloc[-1]
         
-        resistance_line = ma20 + (std20 * 2)  # 통계적 저항 (상위 2.3% 영역)
-        support_line = ma20 - (std20 * 2)     # 통계적 지지 (하위 2.3% 영역)
+        resistance_line = ma20 + (std20 * 2)  
+        support_line = ma20 - (std20 * 2)     
         
-        # 2. ATR (Average True Range) 실전 변동성 계산
+        # 3. ATR (Average True Range) 실전 변동성 계산
         high_low = hist['High'] - hist['Low']
         high_close = (hist['High'] - hist['Close'].shift()).abs()
         low_close = (hist['Low'] - hist['Close'].shift()).abs()
         
         ranges = pd.concat([high_low, high_close, low_close], axis=1)
         true_range = ranges.max(axis=1)
-        atr = true_range.rolling(14).mean().iloc[-1] # 14일 표준 ATR 도출
+        atr = true_range.rolling(14).mean().iloc[-1] 
         
-        # 3. 퀀트 포지션 사이징 기반 손절/익절선 (Noise-free 매매기법)
-        stop_loss = current_price - (atr * 2.0)    # 통계적 시장 소음(Noise) 돌파 가격
-        take_profit = current_price + (atr * 3.0)   # 손익비 1:1.5 패러다임 적용
+        # 만약 ATR 계산이 안 될 경우를 대비한 가변 변동성 대치 프로세스
+        if np.isnan(atr) or atr == 0:
+            atr = current_price * 0.03 # 기본값 3% 부여
+            
+        # 4. 퀀트 포지션 사이징 기반 손절/익절선
+        stop_loss = current_price - (atr * 2.0)    
+        take_profit = current_price + (atr * 3.0)   
         
         # 화면 분할 레이아웃
         c1, c2 = st.columns([3, 1])
@@ -144,6 +155,8 @@ if menu == "시장 분석":
                     st.write("가져올 수 있는 최신 뉴스가 없습니다.")
             except Exception as news_err:
                 st.write("⚠️ 뉴스 서버 피드를 일시적으로 불러올 수 없습니다.")
+    else:
+        st.error(f"❌ {ticker} 종목 데이터를 서버에서 전혀 가져오지 못했습니다. 알파벳 종목명이 맞는지 확인하시거나, 야후 서버 호출 제한 해제를 위해 잠시 후 다시 검색해 주세요.")
 
 elif menu == "퀀트 스크리너":
     if st.button("전체 종목 퀀트 스캔 시작"):

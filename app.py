@@ -195,10 +195,28 @@ elif menu == "전략 테스트":
     st.write("### 이동평균 백테스트")
     s, l = st.slider("단기/장기 기간", 5, 200, (20, 100))
     ticker = st.text_input("백테스트 종목", "NVDA").upper()
-    df = yf.download(ticker, period="2y")
-    if not df.empty:
+    
+    # group_by="ticker"와 squeeze=True 처럼 유연하게 대응하기 위해 단일 열 추출 로직 강화
+    df_raw = yf.download(ticker, period="2y")
+    
+    if not df_raw.empty:
+        # MultiIndex 구조이거나 데이터프레임 2차원 형태일 경우 1차원 Series로 강제 변환
+        if isinstance(df_raw.columns, pd.MultiIndex):
+            close_series = df_raw['Close'][ticker].squeeze()
+        else:
+            close_series = df_raw['Close'].squeeze()
+            
+        df = pd.DataFrame(index=df_raw.index)
+        df['Close'] = close_series
+        
+        # 이동평균 및 시그널 계산
         df['SMA_S'] = df['Close'].rolling(s).mean()
         df['SMA_L'] = df['Close'].rolling(l).mean()
+        
         signal = pd.Series(np.where(df['SMA_S'] > df['SMA_L'], 1, 0), index=df.index)
+        
+        # 수익률 계산 및 시각화
         df['Ret'] = df['Close'].pct_change() * signal
         st.line_chart(df['Ret'].cumsum())
+    else:
+        st.error("백테스트 데이터를 불러오지 못했습니다.")

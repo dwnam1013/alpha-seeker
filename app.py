@@ -80,20 +80,32 @@ elif menu == "퀀트 스크리너":
     if st.button("전체 종목 퀀트 스캔 시작"):
         prog = st.progress(0)
         results = []
+        # 데이터를 안전하게 불러오기 위한 루프
         for i, t in enumerate(FLAT_LIST):
+            # 1. 0.5초 대기 (서버 차단 방지)
+            time.sleep(0.5) 
+            
             s, _, info = fetch_ticker_data(t)
-            if s:
+            
+            # 2. 데이터가 제대로 들어왔는지, 재무 지표가 있는지 검사
+            if s and info and 'trailingPE' in info:
                 pcr = get_option_chain_analysis(s)
-                score = (info.get('trailingPE', 0) * 0.1) + (info.get('returnOnEquity', 0) * 100)
+                # 데이터가 없는 경우 0으로 처리하지 않도록 get 사용
+                pe = info.get('trailingPE', 0)
+                roe = info.get('returnOnEquity', 0)
+                
+                score = (pe * 0.1) + (roe * 100)
                 results.append({"Ticker": t, "Score": score, "PCR": pcr})
+            
             prog.progress((i+1)/len(FLAT_LIST))
         
-        # 여기서 정확한 함수 st.dataframe 사용
+        # 3. 데이터프레임 변환 및 확인
         df_results = pd.DataFrame(results)
-        if not df_results.empty and "Score" in df_results.columns:
+        if not df_results.empty:
             st.dataframe(df_results.sort_values("Score", ascending=False), use_container_width=True)
         else:
-            st.warning("분석할 데이터가 없습니다.")
+            st.warning("데이터를 가져오는 데 실패했습니다. 잠시 후(1~2분 뒤) 다시 시도해주세요.")
+            st.write("힌트: 현재 네트워크 연결 상태나 야후 파이낸스의 응답이 원활하지 않을 수 있습니다.")
 elif menu == "포트폴리오":
     st.write("### MPT 최적화 엔진")
     data = yf.download(FLAT_LIST, period="1y")['Adj Close']

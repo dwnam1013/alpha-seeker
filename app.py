@@ -87,8 +87,13 @@ elif menu == "퀀트 스크리너":
                 score = (info.get('trailingPE', 0) * 0.1) + (info.get('returnOnEquity', 0) * 100)
                 results.append({"Ticker": t, "Score": score, "PCR": pcr})
             prog.progress((i+1)/len(FLAT_LIST))
-        st.dataframe(pd.DataFrame(results).sort_values("Score", ascending=False))
-
+        
+        # 여기서 정확한 함수 st.dataframe 사용
+        df_results = pd.DataFrame(results)
+        if not df_results.empty and "Score" in df_results.columns:
+            st.dataframe(df_results.sort_values("Score", ascending=False), use_container_width=True)
+        else:
+            st.warning("분석할 데이터가 없습니다.")
 elif menu == "포트폴리오":
     st.write("### MPT 최적화 엔진")
     data = yf.download(FLAT_LIST, period="1y")['Adj Close']

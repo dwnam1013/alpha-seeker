@@ -106,6 +106,6 @@ elif menu == "전략 테스트":
     df['SMA_S'] = df['Close'].rolling(s).mean()
     df['SMA_L'] = df['Close'].rolling(l).mean()
     # 108번 줄을 삭제하고 아래 내용으로 교체
-signal = pd.Series(np.where(df['SMA_S'] > df['SMA_L'], 1, 0), index=df.index)
-df['Ret'] = df['Close'].pct_change() * signal
+    signal = pd.Series(np.where(df['SMA_S'] > df['SMA_L'], 1, 0), index=df.index)
+    df['Ret'] = df['Close'].pct_change() * signal
     st.line_chart(df['Ret'].cumsum())

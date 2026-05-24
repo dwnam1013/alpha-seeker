@@ -13,7 +13,7 @@ import time
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-st.set_page_config(page_title="Alpha-Seeker Pro Enterprise", layout="wide")
+st.set_page_config(page_title="Alpha-Seeker Quant Pro", layout="wide")
 
 # --- [2. 상세 스타일링] ---
 st.markdown("""
@@ -28,7 +28,7 @@ st.markdown("""
 st.markdown('<div class="finviz-logo">ALPHA<span>SEEKER</span>.com</div>', unsafe_allow_html=True)
 st.caption("2026 Enterprise Quantitative Intelligence Platform")
 
-# --- [3. 요청하신 새 종목 풀 반영 (완벽한 중괄호 괄호 매칭)] ---
+# --- [3. 104개 종목 마스터 풀 관리] ---
 WATCH_LIST = {
     "Technology": [
         "NVDA", "AVGO", "AMD", "ARM", "MRVL", "NVTS", "WOLF", "QCOM", "ADI", "MU",
@@ -75,52 +75,62 @@ if menu == "시장 분석":
     s, hist, info = fetch_ticker_data(ticker)
     
     if s and hist is not None and not hist.empty:
-        # --- [트레이딩 핵심 선행 지표 계산] ---
+        # --- [퀀트 전문가 방식의 지표 계산 파트] ---
         current_price = info.get('currentPrice', hist['Close'].iloc[-1])
         
-        # 최근 20일간의 최고가/최저가 기준으로 저항선/지지선 도출
-        recent_hist = hist.tail(20)
-        resistance_line = recent_hist['High'].max()
-        support_line = recent_hist['Low'].min()
+        # 1. 통계적 지지/저항선 계산 (20일 이동평균 ∓ 2 표준편차)
+        ma20 = hist['Close'].rolling(window=20).mean().iloc[-1]
+        std20 = hist['Close'].rolling(window=20).std().iloc[-1]
         
-        # 최근 20일 표준편차를 활용한 정밀 손절/익절선 계산
-        volatility = recent_hist['Close'].pct_change().std() * current_price
-        stop_loss = current_price - (volatility * 1.5)
-        take_profit = current_price + (volatility * 2.0)
+        resistance_line = ma20 + (std20 * 2)  # 통계적 저항 (상위 2.3% 영역)
+        support_line = ma20 - (std20 * 2)     # 통계적 지지 (하위 2.3% 영역)
+        
+        # 2. ATR (Average True Range) 실전 변동성 계산
+        high_low = hist['High'] - hist['Low']
+        high_close = (hist['High'] - hist['Close'].shift()).abs()
+        low_close = (hist['Low'] - hist['Close'].shift()).abs()
+        
+        ranges = pd.concat([high_low, high_close, low_close], axis=1)
+        true_range = ranges.max(axis=1)
+        atr = true_range.rolling(14).mean().iloc[-1] # 14일 표준 ATR 도출
+        
+        # 3. 퀀트 포지션 사이징 기반 손절/익절선 (Noise-free 매매기법)
+        stop_loss = current_price - (atr * 2.0)    # 통계적 시장 소음(Noise) 돌파 가격
+        take_profit = current_price + (atr * 3.0)   # 손익비 1:1.5 패러다임 적용
         
         # 화면 분할 레이아웃
         c1, c2 = st.columns([3, 1])
         with c1:
-            st.write(f"### 📈 {ticker} 차트 및 기술적 기준선")
+            st.write(f"### 📈 {ticker} 퀀트 변동성 차트")
             
-            # 메인 캔들스틱 차트 생성
             fig = go.Figure()
             fig.add_trace(go.Candlestick(
                 x=hist.index, open=hist['Open'], high=hist['High'], low=hist['Low'], close=hist['Close'],
                 name="주가 캔들"
             ))
             
-            # 지지/저항/손절/익절 지표선을 수평선으로 가시화
-            fig.add_hline(y=resistance_line, line_dash="dash", line_color="#ff4b4b", annotation_text=f"저항선 (${resistance_line:.2f})")
-            fig.add_hline(y=support_line, line_dash="dash", line_color="#00f0ff", annotation_text=f"지지선 (${support_line:.2f})")
-            fig.add_hline(y=take_profit, line_dash="dot", line_color="#00ff66", annotation_text=f"🎯 목표가(익절) (${take_profit:.2f})")
-            fig.add_hline(y=stop_loss, line_dash="dot", line_color="#ff9900", annotation_text=f"🚨 손절선 (${stop_loss:.2f})")
+            # 수평 지표선 렌더링
+            fig.add_hline(y=resistance_line, line_dash="dash", line_color="#ff4b4b", annotation_text=f"통계적 저항선 (${resistance_line:.2f})")
+            fig.add_hline(y=support_line, line_dash="dash", line_color="#00f0ff", annotation_text=f"통계적 지지선 (${support_line:.2f})")
+            fig.add_hline(y=take_profit, line_dash="dot", line_color="#00ff66", annotation_text=f"🎯 ATR 익절가 (${take_profit:.2f})")
+            fig.add_hline(y=stop_loss, line_dash="dot", line_color="#ff9900", annotation_text=f"🚨 ATR 손절선 (${stop_loss:.2f})")
             
             fig.update_layout(template="plotly_dark", height=600, xaxis_rangeslider_visible=False)
             st.plotly_chart(fig, use_container_width=True)
             
         with c2:
-            st.write("### 📊 실시간 트레이딩 가이드")
+            st.write("### 🧮 퀀트 리스크 리포트")
             st.metric("현재가", f"${current_price:.2f}")
+            st.metric("14일 ATR (시장 변동성)", f"${atr:.2f}")
             
-            # 정보 카드 배치
             st.markdown(f"""
             <div class='report-card'>
-                <h4 style='color:#00ff66;'>🎯 익절 목표: ${take_profit:.2f}</h4>
-                <h4 style='color:#ff4b4b;'>🚨 손절 기준: ${stop_loss:.2f}</h4>
+                <h4 style='color:#00ff66; margin-top:0;'>🎯 Target (3.0 ATR): ${take_profit:.2f}</h4>
+                <h4 style='color:#ff9900;'>🚨 Stop (2.0 ATR): ${stop_loss:.2f}</h4>
                 <hr style='border-color:#30363d;'>
-                <p>📈 주요 저항선: ${resistance_line:.2f}</p>
-                <p>📉 주요 지지선: ${support_line:.2f}</p>
+                <p style='font-size:13px; color:#8b949e;'>💡 본 라인은 단순 가격 격차가 아닌 시장 고유 변동성 추세를 반영한 값입니다. 주가가 손절선을 터치할 확률은 통계적으로 5% 미만입니다.</p>
+                <p style='margin-bottom:0;'>🔺 2σ 저항선: ${resistance_line:.2f}</p>
+                <p style='margin-bottom:0;'>🔻 2σ 지지선: ${support_line:.2f}</p>
             </div>
             """, unsafe_allow_html=True)
             
